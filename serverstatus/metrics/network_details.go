@@ -9,7 +9,7 @@ import (
 )
 
 func GetNetworkDetails() string {
-	cmd := exec.Command("ip", "-brief", "addr", "show") // This block will be more platform inclusive soon...
+	cmd := exec.Command("cat", "/proc/net/dev") // This block will be more platform inclusive soon...
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()

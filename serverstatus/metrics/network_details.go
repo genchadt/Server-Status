@@ -1,48 +1,49 @@
 package metrics
 
 import (
-    "bytes"
-    "html/template"
-    "os/exec"
-    "strings"
+	"bytes"
+	"html/template"
+	"os/exec"
+	"serverstatus/utils"
+	"strings"
 )
 
 func GetNetworkDetails() string {
-    cmd := exec.Command("ip", "-brief", "addr", "show")
-    var out bytes.Buffer
-    cmd.Stdout = &out
-    err := cmd.Run()
-    if err != nil {
-        return "<p>Unable to retrieve network details.</p>"
-    }
+	cmd := exec.Command("ip", "-brief", "addr", "show") // This block will be more platform inclusive soon...
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return "<p>Unable to retrieve network details.</p>"
+	}
 
-    lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-    if len(lines) == 0 {
-        return "<p>No network information available.</p>"
-    }
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) == 0 {
+		return "<p>No network information available.</p>"
+	}
 
-    var data []struct {
-        Interface string
-        State     string
-        IPAddress string
-    }
+	var data []struct {
+		Interface string
+		State     string
+		IPAddress string
+	}
 
-    for _, line := range lines {
-        fields := strings.Fields(line)
-        if len(fields) >= 3 {
-            data = append(data, struct {
-                Interface string
-                State     string
-                IPAddress string
-            }{
-                Interface: fields[0],
-                State:     fields[1],
-                IPAddress: fields[2],
-            })
-        }
-    }
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) >= 3 {
+			data = append(data, struct {
+				Interface string
+				State     string
+				IPAddress string
+			}{
+				Interface: fields[0],
+				State:     fields[1],
+				IPAddress: utils.SanitizeIPAddress(fields[2]),
+			})
+		}
+	}
 
-    tmpl := `<table border="1">
+	tmpl := `<table border="1">
     <tr><th>Interface</th><th>State</th><th>IP Address</th></tr>
     {{range .}}
     <tr>
@@ -53,8 +54,8 @@ func GetNetworkDetails() string {
     {{end}}
     </table>`
 
-    t := template.Must(template.New("networkDetails").Parse(tmpl))
-    var htmlOut bytes.Buffer
-    t.Execute(&htmlOut, data)
-    return htmlOut.String()
+	t := template.Must(template.New("networkDetails").Parse(tmpl))
+	var htmlOut bytes.Buffer
+	t.Execute(&htmlOut, data)
+	return htmlOut.String()
 }

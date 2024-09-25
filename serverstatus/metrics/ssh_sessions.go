@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"os/exec"
+	"serverstatus/utils"
 	"strings"
 )
 
@@ -40,7 +41,7 @@ func GetActiveSSHSessions() string {
 				User:      fields[0],
 				Terminal:  fields[1],
 				LoginTime: fields[2] + " " + fields[3],
-				IPAddress: fields[4],
+				IPAddress: utils.SanitizeIPAddress(fields[4]),
 			})
 		}
 	}

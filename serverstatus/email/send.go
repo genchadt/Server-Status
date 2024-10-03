@@ -3,7 +3,7 @@ package email
 import (
 	"fmt"
 	"net/smtp"
-	// "strings"
+	// "github.com/wneessen/go-mail"
 )
 
 // TODO: Decide on method for securely storing email credentials

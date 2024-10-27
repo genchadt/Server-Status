@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+// GetActiveSSHSessions returns a string containing an HTML table of all active SSH sessions
+// including user, terminal, login time, and IP address. If there are no active sessions, it
+// returns a string indicating that. If there is an error running the "who" command, it returns
+// a string indicating that.
 func GetActiveSSHSessions() string {
 	cmd := exec.Command("who")
 	var out bytes.Buffer
@@ -64,6 +68,9 @@ func GetActiveSSHSessions() string {
 	return htmlOut.String()
 }
 
+// GetPreviousSSHSessions returns a string containing an HTML table of the last 10 SSH sessions,
+// including user, terminal, IP address, login time, and duration. If there are no recent logins,
+// or if an error occurs while executing the "last" command, it returns a string indicating that.
 func GetPreviousSSHSessions() string {
 	cmd := exec.Command("last", "-n", "10")
 	var out bytes.Buffer

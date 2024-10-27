@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+// GetNetworkDetails returns a string containing an HTML table of network interface information
+// including interface name, state, and IP address. If there are no network interfaces available,
+// or if an error occurs while executing the "cat /proc/net/dev" command, it returns a string
+// indicating that.
 func GetNetworkDetails() string {
 	cmd := exec.Command("cat", "/proc/net/dev") // This block will be more platform inclusive soon...
 	var out bytes.Buffer

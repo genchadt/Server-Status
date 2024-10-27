@@ -9,6 +9,9 @@ import (
 	"serverstatus/metrics"
 )
 
+// main is the entry point for the program. It collects all the server metrics,
+// constructs an email body with the metrics, and sends the email to the
+// administrator.
 func main() {
 	// Server details here
 	serverHostname := "Lightsail Web"

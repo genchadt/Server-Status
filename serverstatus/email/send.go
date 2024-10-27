@@ -8,6 +8,9 @@ import (
 
 // TODO: Decide on method for securely storing email credentials
 
+// SendEmail sends an email with the given subject and body to the recipient at the given
+// address. It uses the SMTP server and credentials specified in the function body.
+// Note that the auth information should be replaced with a secure storage mechanism.
 func SendEmail(subject, body, to string) error {
 	// Auth info goes here
 	auth := smtp.PlainAuth("", "your_email@example.com", "your_password", "smtp.example.com")

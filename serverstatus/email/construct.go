@@ -1,12 +1,16 @@
 package email
 
 import (
-    "bytes"
-    "html/template"
+	"bytes"
+	"html/template"
 )
 
+// ConstructEmailBody generates an HTML email body containing server status information
+// using the provided EmailData. The email includes details such as server time, uptime,
+// package updates, disk and memory usage, CPU load, SSH sessions, network details, and
+// CrowdSec alerts and decisions. The email body is styled with basic CSS for readability.
 func ConstructEmailBody(data EmailData) string {
-    tmpl := `
+	tmpl := `
     <html>
         <head>
             <style>
@@ -68,8 +72,8 @@ func ConstructEmailBody(data EmailData) string {
         </body>
     </html>
     `
-    t := template.Must(template.New("emailBody").Parse(tmpl))
-    var htmlOut bytes.Buffer
-    t.Execute(&htmlOut, data)
-    return htmlOut.String()
+	t := template.Must(template.New("emailBody").Parse(tmpl))
+	var htmlOut bytes.Buffer
+	t.Execute(&htmlOut, data)
+	return htmlOut.String()
 }

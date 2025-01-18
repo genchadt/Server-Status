@@ -1,0 +1,15 @@
+[Unit]
+Description=Server Status Report Service
+After=network.target
+
+[Service]
+Type=oneshot
+Environment="TZ=America/New_York"
+EnvironmentFile=/etc/serverstatus/.env
+WorkingDirectory=/opt/serverstatus
+ExecStart=/opt/serverstatus/serverstatus
+StandardOutput=append:/var/log/serverstatus/service.log
+StandardError=append:/var/log/serverstatus/error.log
+
+[Install]
+WantedBy=multi-user.target

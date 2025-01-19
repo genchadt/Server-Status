@@ -3,6 +3,7 @@ package metrics
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os/exec"
 	"regexp"
@@ -39,9 +40,9 @@ func GetCPULoad() (*CPULoad, error) {
 }
 
 // FormatCPULoad formats CPU load details into an HTML table
-func FormatCPULoad(cpuLoad *CPULoad) string {
+func FormatCPULoad(cpuLoad *CPULoad) (string, error) {
 	if cpuLoad == nil {
-		return "<p>Unable to retrieve CPU load details.</p>"
+		return "<p>Unable to retrieve CPU load details.</p>", fmt.Errorf("nil CPULoad data provided")
 	}
 	tmpl := `<table border="1">
     <tr><th>1 Minute Load</th><th>5 Minute Load</th><th>15 Minute Load</th></tr>
@@ -54,6 +55,9 @@ func FormatCPULoad(cpuLoad *CPULoad) string {
 
 	t := template.Must(template.New("cpuLoad").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, cpuLoad)
-	return htmlOut.String()
+	err := t.Execute(&htmlOut, cpuLoad)
+	if err != nil {
+		return "<p>Error formatting CPU load details</p>", fmt.Errorf("error executing template: %v", err)
+	}
+	return htmlOut.String(), nil
 }

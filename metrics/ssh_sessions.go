@@ -1,3 +1,4 @@
+// metrics/ssh_sessions.go
 package metrics
 
 import (
@@ -8,46 +9,59 @@ import (
 	"strings"
 )
 
-// GetActiveSSHSessions returns a string containing an HTML table of all active SSH sessions
-// including user, terminal, login time, and IP address. If there are no active sessions, it
-// returns a string indicating that. If there is an error running the "who" command, it returns
-// a string indicating that.
-func GetActiveSSHSessions() string {
+// ActiveSession represents an active SSH session
+type ActiveSession struct {
+	User      string
+	Terminal  string
+	LoginTime string
+	IPAddress string
+}
+
+// PreviousSession represents a previous SSH session
+type PreviousSession struct {
+	User      string
+	Terminal  string
+	IPAddress string
+	LoginTime string
+	Duration  string
+}
+
+// GetActiveSSHSessions retrieves active SSH sessions
+func GetActiveSSHSessions() ([]ActiveSession, error) {
 	cmd := exec.Command("who")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		return "<p>Unable to retrieve active SSH sessions.</p>"
+		return nil, err
 	}
 
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
 	if len(lines) == 0 || lines[0] == "" {
-		return "<p>No active SSH sessions found.</p>"
+		return nil, nil
 	}
 
-	var data []struct {
-		User      string
-		Terminal  string
-		LoginTime string
-		IPAddress string
-	}
+	var data []ActiveSession
 
 	for _, line := range lines {
 		fields := strings.Fields(line)
 		if len(fields) >= 5 {
-			data = append(data, struct {
-				User      string
-				Terminal  string
-				LoginTime string
-				IPAddress string
-			}{
+			data = append(data, ActiveSession{
 				User:      fields[0],
 				Terminal:  fields[1],
 				LoginTime: fields[2] + " " + fields[3],
 				IPAddress: utils.SanitizeIPAddress(fields[4]),
 			})
 		}
+	}
+
+	return data, nil
+}
+
+// FormatActiveSSHSessions formats active SSH sessions into an HTML table
+func FormatActiveSSHSessions(data []ActiveSession) string {
+	if len(data) == 0 {
+		return "<p>No active SSH sessions found.</p>"
 	}
 
 	tmpl := `<table border="1">
@@ -68,30 +82,22 @@ func GetActiveSSHSessions() string {
 	return htmlOut.String()
 }
 
-// GetPreviousSSHSessions returns a string containing an HTML table of the last 10 SSH sessions,
-// including user, terminal, IP address, login time, and duration. If there are no recent logins,
-// or if an error occurs while executing the "last" command, it returns a string indicating that.
-func GetPreviousSSHSessions() string {
+// GetPreviousSSHSessions retrieves previous SSH sessions
+func GetPreviousSSHSessions() ([]PreviousSession, error) {
 	cmd := exec.Command("last", "-n", "10")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		return "<p>Unable to retrieve previous SSH sessions.</p>"
+		return nil, err
 	}
 
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
 	if len(lines) == 0 || strings.Contains(lines[0], "wtmp begins") {
-		return "<p>No recent SSH logins found.</p>"
+		return nil, nil
 	}
 
-	var data []struct {
-		User      string
-		Terminal  string
-		IPAddress string
-		LoginTime string
-		Duration  string
-	}
+	var data []PreviousSession
 
 	for _, line := range lines {
 		if strings.Contains(line, "wtmp begins") {
@@ -99,13 +105,7 @@ func GetPreviousSSHSessions() string {
 		}
 		fields := strings.Fields(line)
 		if len(fields) >= 10 {
-			data = append(data, struct {
-				User      string
-				Terminal  string
-				IPAddress string
-				LoginTime string
-				Duration  string
-			}{
+			data = append(data, PreviousSession{
 				User:      fields[0],
 				Terminal:  fields[1],
 				IPAddress: fields[2],
@@ -113,6 +113,15 @@ func GetPreviousSSHSessions() string {
 				Duration:  fields[9],
 			})
 		}
+	}
+
+	return data, nil
+}
+
+// FormatPreviousSSHSessions formats previous SSH sessions into an HTML table
+func FormatPreviousSSHSessions(data []PreviousSession) string {
+	if len(data) == 0 {
+		return "<p>No recent SSH logins found.</p>"
 	}
 
 	tmpl := `<table border="1">

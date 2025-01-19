@@ -3,48 +3,54 @@ package metrics
 import (
 	"bytes"
 	"html/template"
-	"os/exec"
 	"serverstatus/utils"
-	"strings"
+
+	"github.com/vishvananda/netlink"
 )
 
-// GetNetworkDetails returns a string containing an HTML table of network interface information
-// including interface name, state, and IP address. If there are no network interfaces available,
-// or if an error occurs while executing the "cat /proc/net/dev" command, it returns a string
-// indicating that.
-func GetNetworkDetails() string {
-	cmd := exec.Command("cat", "/proc/net/dev") // This block will be more platform inclusive soon...
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
+// NetworkInterface represents network interface information
+type NetworkInterface struct {
+	Interface string
+	State     string
+	IPAddress string
+}
+
+// GetNetworkDetails retrieves network interface details
+func GetNetworkDetails() ([]NetworkInterface, error) {
+	links, err := netlink.LinkList()
 	if err != nil {
-		return "<p>Unable to retrieve network details.</p>"
+		return nil, err
 	}
 
-	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(lines) == 0 {
-		return "<p>No network information available.</p>"
-	}
+	var data []NetworkInterface
 
-	var data []struct {
-		Interface string
-		State     string
-		IPAddress string
-	}
+	for _, link := range links {
+		attrs := link.Attrs()
+		if attrs == nil {
+			continue
+		}
 
-	for _, line := range lines {
-		fields := strings.Fields(line)
-		if len(fields) >= 3 {
-			data = append(data, struct {
-				Interface string
-				State     string
-				IPAddress string
-			}{
-				Interface: fields[0],
-				State:     fields[1],
-				IPAddress: utils.SanitizeIPAddress(fields[2]),
+		addrs, err := netlink.AddrList(link, 0)
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			data = append(data, NetworkInterface{
+				Interface: attrs.Name,
+				State:     linkStateToString(attrs.OperState),
+				IPAddress: utils.SanitizeIPAddress(addr.IP.String()),
 			})
 		}
+	}
+
+	return data, nil
+}
+
+// FormatNetworkDetails formats network details into an HTML table
+func FormatNetworkDetails(data []NetworkInterface) string {
+	if len(data) == 0 {
+		return "<p>No network information available.</p>"
 	}
 
 	tmpl := `<table border="1">
@@ -60,6 +66,23 @@ func GetNetworkDetails() string {
 
 	t := template.Must(template.New("networkDetails").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, data)
+	err := t.Execute(&htmlOut, data)
+	if err != nil {
+		return "<p>Error formatting network details.</p>"
+	}
 	return htmlOut.String()
+}
+
+// Helper function to convert netlink.LinkOperState to string
+func linkStateToString(state netlink.LinkOperState) string {
+	switch state {
+	case netlink.OperUp:
+		return "UP"
+	case netlink.OperDown:
+		return "DOWN"
+	case netlink.OperUnknown:
+		return "UNKNOWN"
+	default:
+		return "OTHER"
+	}
 }

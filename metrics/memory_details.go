@@ -1,3 +1,4 @@
+// metrics/memory_details.go
 package metrics
 
 import (
@@ -7,22 +8,25 @@ import (
 	"strings"
 )
 
-// GetMemoryDetails retrieves the current memory and swap usage and returns it as an HTML
-// table. If there is an error while executing the "free -h" command, or if there is no
-// memory information available, it returns a string indicating that. The table will have
-// the following columns: total, used, free, shared, buff/cache, and available.
-func GetMemoryDetails() string {
+// MemoryData represents memory usage information
+type MemoryData struct {
+	Headers []string
+	Data    []map[string]string
+}
+
+// GetMemoryDetails retrieves memory usage details
+func GetMemoryDetails() (*MemoryData, error) {
 	cmd := exec.Command("free", "-h")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		return "<p>Unable to retrieve memory details.</p>"
+		return nil, err
 	}
 
 	lines := strings.Split(out.String(), "\n")
 	if len(lines) < 3 {
-		return "<p>Memory information unavailable.</p>"
+		return nil, err
 	}
 
 	headers := strings.Fields(lines[0])
@@ -42,6 +46,17 @@ func GetMemoryDetails() string {
 		data = append(data, row)
 	}
 
+	return &MemoryData{
+		Headers: headers,
+		Data:    data,
+	}, nil
+}
+
+// FormatMemoryDetails formats memory details into an HTML table
+func FormatMemoryDetails(memoryData *MemoryData) string {
+	if memoryData == nil {
+		return "<p>Unable to retrieve memory details.</p>"
+	}
 	tmpl := `<table border="1">
     <tr>
     {{range $key := .Headers}}<th>{{$key}}</th>{{end}}
@@ -55,9 +70,6 @@ func GetMemoryDetails() string {
 
 	t := template.Must(template.New("memoryDetails").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, map[string]interface{}{
-		"Headers": headers,
-		"Data":    data,
-	})
+	t.Execute(&htmlOut, memoryData)
 	return htmlOut.String()
 }

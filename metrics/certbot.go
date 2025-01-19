@@ -1,3 +1,4 @@
+// metrics/certbot.go
 package metrics
 
 import (
@@ -8,28 +9,30 @@ import (
 	"strings"
 )
 
-func GetCertbotCerts() string {
+// Certificate represents a Certbot certificate
+type Certificate struct {
+	CertificateName string
+	Domains         string
+	ExpiryDate      string
+	Validity        string
+	CertPath        string
+	KeyPath         string
+}
+
+// GetCertbotCerts retrieves Certbot certificates
+func GetCertbotCerts() ([]Certificate, error) {
 	cmd := exec.Command("certbot", "certificates")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		return "<p>Unable to retrieve Certbot certificates</p>"
+		return nil, err
 	}
 
 	output := out.String()
 	lines := strings.Split(output, "\n")
 	if len(lines) == 0 {
-		return "<p>No Certbot certificates found.</p>"
-	}
-
-	type Certificate struct {
-		CertificateName string
-		Domains         string
-		ExpiryDate      string
-		Validity        string
-		CertPath        string
-		KeyPath         string
+		return nil, nil
 	}
 
 	var certs []Certificate
@@ -70,6 +73,11 @@ func GetCertbotCerts() string {
 		certs = append(certs, cert)
 	}
 
+	return certs, nil
+}
+
+// FormatCertbotCerts formats Certbot certificates into an HTML table
+func FormatCertbotCerts(certs []Certificate) string {
 	if len(certs) == 0 {
 		return "<p>No Certbot certificates found.</p>"
 	}
@@ -97,7 +105,7 @@ func GetCertbotCerts() string {
 
 	t := template.Must(template.New("certbotCertificates").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	err = t.Execute(&htmlOut, certs)
+	err := t.Execute(&htmlOut, certs)
 	if err != nil {
 		return "<p>Unable to render Certbot certificates</p>"
 	}

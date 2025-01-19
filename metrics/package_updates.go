@@ -1,3 +1,4 @@
+// metrics/package_updates.go
 package metrics
 
 import (
@@ -7,29 +8,30 @@ import (
 	"strings"
 )
 
-// GetPackageUpdates retrieves a list of upgradable packages and returns it as an HTML table.
-// If there are no upgradable packages, it returns a message indicating all packages are up to date.
-// In case of an error executing the command, it returns an error message.
-func GetPackageUpdates() string {
+// PackageUpdate represents a package update
+type PackageUpdate struct {
+	Package        string
+	CurrentVersion string
+	NewVersion     string
+}
+
+// GetPackageUpdates retrieves a list of upgradable packages
+func GetPackageUpdates() ([]PackageUpdate, error) {
 	cmd := exec.Command("apt", "list", "--upgradable")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
-		return "<p>Unable to retrieve package updates.</p>"
+		return nil, err
 	}
 
 	lines := strings.Split(out.String(), "\n")
 	if len(lines) <= 1 {
-		return "<p>All packages are up to date.</p>"
+		return nil, nil
 	}
 
-	var data []struct {
-		Package        string
-		CurrentVersion string
-		NewVersion     string
-	}
+	var data []PackageUpdate
 
 	for _, line := range lines[1:] {
 		if line == "" {
@@ -39,17 +41,22 @@ func GetPackageUpdates() string {
 		if len(fields) >= 2 {
 			pkgInfo := strings.Split(fields[0], "/")
 			if len(pkgInfo) > 0 {
-				data = append(data, struct {
-					Package        string
-					CurrentVersion string
-					NewVersion     string
-				}{
+				data = append(data, PackageUpdate{
 					Package:        pkgInfo[0],
 					CurrentVersion: fields[1],
 					NewVersion:     fields[1],
 				})
 			}
 		}
+	}
+
+	return data, nil
+}
+
+// FormatPackageUpdates formats package updates into an HTML table
+func FormatPackageUpdates(data []PackageUpdate) string {
+	if len(data) == 0 {
+		return "<p>All packages are up to date.</p>"
 	}
 
 	tmpl := `<table border="1">

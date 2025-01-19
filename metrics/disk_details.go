@@ -1,63 +1,95 @@
+// metrics/disk_details.go
 package metrics
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"html/template"
 	"os/exec"
 	"strings"
+	"time"
 )
 
-// GetDiskDetails returns a string containing an HTML table of disk usage information
-// including the file system, size, used space, available space, used percentage, and mount
-// point. If there is an error while executing the "df -h" command, or if there is no
-// disk information available, it returns a string indicating that.
-func GetDiskDetails() string {
-	cmd := exec.Command("df", "-h")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
+// DiskUsage represents disk usage information
+type DiskUsage struct {
+	Filesystem string
+	Size       string
+	Used       string
+	Available  string
+	UsePercent string
+	MountedOn  string
+}
+
+// GetDiskDetails retrieves disk usage information
+func GetDiskDetails() ([]DiskUsage, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "df", "-h")
+	out, err := cmd.Output()
 	if err != nil {
-		return "<p>Unable to retrieve disk details.</p>"
+		return nil, fmt.Errorf("failed to retrieve disk details: %v", err)
 	}
 
-	lines := strings.Split(out.String(), "\n")
+	lines := strings.Split(string(out), "\n")
 	if len(lines) < 2 {
-		return "<p>No disk information available.</p>"
+		return nil, fmt.Errorf("no disk information available")
 	}
 
-	headers := strings.Fields(lines[0])
-	var data []map[string]string
+	var diskUsages []DiskUsage
 
 	for _, line := range lines[1:] {
 		if line == "" {
 			continue
 		}
 		fields := strings.Fields(line)
-		row := make(map[string]string)
-		for i, header := range headers {
-			if i < len(fields) {
-				row[header] = fields[i]
-			}
+		if len(fields) < 6 {
+			continue
 		}
-		data = append(data, row)
+
+		diskUsages = append(diskUsages, DiskUsage{
+			Filesystem: fields[0],
+			Size:       fields[1],
+			Used:       fields[2],
+			Available:  fields[3],
+			UsePercent: fields[4],
+			MountedOn:  fields[5],
+		})
+	}
+
+	return diskUsages, nil
+}
+
+// FormatDiskDetails takes the disk usage data and formats it into an HTML table string.
+func FormatDiskDetails(diskUsages []DiskUsage) string {
+	if len(diskUsages) == 0 {
+		return "<p>No disk information available.</p>"
 	}
 
 	tmpl := `<table border="1">
     <tr>
-    {{range $key := .Headers}}<th>{{$key}}</th>{{end}}
+        <th>Filesystem</th>
+        <th>Size</th>
+        <th>Used</th>
+        <th>Available</th>
+        <th>Use%</th>
+        <th>Mounted On</th>
     </tr>
-    {{range .Data}}
+    {{range .}}
     <tr>
-        {{range $key := $.Headers}}<td>{{index . $key}}</td>{{end}}
+        <td>{{.Filesystem}}</td>
+        <td>{{.Size}}</td>
+        <td>{{.Used}}</td>
+        <td>{{.Available}}</td>
+        <td>{{.UsePercent}}</td>
+        <td>{{.MountedOn}}</td>
     </tr>
     {{end}}
     </table>`
 
 	t := template.Must(template.New("diskDetails").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, map[string]interface{}{
-		"Headers": headers,
-		"Data":    data,
-	})
+	t.Execute(&htmlOut, diskUsages)
 	return htmlOut.String()
 }

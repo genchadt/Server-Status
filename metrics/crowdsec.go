@@ -1,3 +1,4 @@
+// metrics/crowdsec.go
 package metrics
 
 import (
@@ -36,29 +37,29 @@ type Decision struct {
 	AlertID     string
 }
 
-func GetCrowdSecAlerts() string {
+// GetCrowdSecAlerts retrieves CrowdSec alerts
+func GetCrowdSecAlerts() ([]Alert, error) {
 	cmd := exec.Command("cscli", "alerts", "list", "-o", "raw")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
-		return "<p>Unable to retrieve CrowdSec alerts.</p>"
+		return nil, err
 	}
 
 	output := strings.TrimSpace(out.String())
 	lines := strings.Split(output, "\n")
 	if len(lines) <= 1 {
-		return "<p>No alerts available.</p>"
+		return nil, nil
 	}
 
 	reader := csv.NewReader(strings.NewReader(output))
 	records, err := reader.ReadAll()
 	if err != nil {
-		return "<p>Error parsing CrowdSec alerts data.</p>"
+		return nil, err
 	}
 
-	// First line is header, rest are data
 	var alerts []Alert
 	for i, record := range records {
 		if i == 0 {
@@ -79,7 +80,15 @@ func GetCrowdSecAlerts() string {
 		})
 	}
 
-	// Generate HTML table using template
+	return alerts, nil
+}
+
+// FormatCrowdSecAlerts formats CrowdSec alerts into an HTML table
+func FormatCrowdSecAlerts(alerts []Alert) string {
+	if len(alerts) == 0 {
+		return "<p>No alerts available.</p>"
+	}
+
 	tmpl := `<table border="1">
     <tr>
         <th>ID</th>
@@ -107,7 +116,7 @@ func GetCrowdSecAlerts() string {
 
 	t := template.Must(template.New("crowdSecAlerts").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	err = t.Execute(&htmlOut, alerts)
+	err := t.Execute(&htmlOut, alerts)
 	if err != nil {
 		return "<p>Error generating CrowdSec alerts table.</p>"
 	}
@@ -115,29 +124,29 @@ func GetCrowdSecAlerts() string {
 	return htmlOut.String()
 }
 
-func GetCrowdSecDecisions() string {
+// GetCrowdSecDecisions retrieves CrowdSec decisions
+func GetCrowdSecDecisions() ([]Decision, error) {
 	cmd := exec.Command("cscli", "decisions", "list", "-o", "raw")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
-		return "<p>Unable to retrieve CrowdSec decisions.</p>"
+		return nil, err
 	}
 
 	output := strings.TrimSpace(out.String())
 	lines := strings.Split(output, "\n")
 	if len(lines) <= 1 {
-		return "<p>No decisions available.</p>"
+		return nil, nil
 	}
 
 	reader := csv.NewReader(strings.NewReader(output))
 	records, err := reader.ReadAll()
 	if err != nil {
-		return "<p>Error parsing CrowdSec decisions data.</p>"
+		return nil, err
 	}
 
-	// First line is header, rest are data
 	var decisions []Decision
 	for i, record := range records {
 		if i == 0 {
@@ -161,7 +170,15 @@ func GetCrowdSecDecisions() string {
 		})
 	}
 
-	// Generate HTML table using template
+	return decisions, nil
+}
+
+// FormatCrowdSecDecisions formats CrowdSec decisions into an HTML table
+func FormatCrowdSecDecisions(decisions []Decision) string {
+	if len(decisions) == 0 {
+		return "<p>No decisions available.</p>"
+	}
+
 	tmpl := `<table border="1">
     <tr>
         <th>ID</th>
@@ -195,7 +212,7 @@ func GetCrowdSecDecisions() string {
 
 	t := template.Must(template.New("crowdSecDecisions").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	err = t.Execute(&htmlOut, decisions)
+	err := t.Execute(&htmlOut, decisions)
 	if err != nil {
 		return "<p>Error generating CrowdSec decisions table.</p>"
 	}

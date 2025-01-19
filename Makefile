@@ -23,7 +23,7 @@ build:
 	@./scripts/build.sh
 
 install: build
-	@sudo ./scripts/install.sh
+	@sudo INSTALL_DIR=$(INSTALL_DIR) LOG_DIR=$(LOG_DIR) CONFIG_DIR=$(CONFIG_DIR) ./scripts/install.sh
 
 uninstall:
 	@sudo ./scripts/uninstall.sh

@@ -1,4 +1,4 @@
-.PHONY: build install uninstall clean test help format lint
+.PHONY: build install uninstall update clean test help format lint
 
 BINARY_NAME := serverstatus
 BINARY_PATH := /opt/$(BINARY_NAME)
@@ -13,6 +13,7 @@ help:
 	@echo "  build       Build the project"
 	@echo "  install     Install the project"
 	@echo "  uninstall   Uninstall the project"
+	@echo "  update      Update dependencies"
 	@echo "  clean       Clean up build files"
 	@echo "  test        Run tests"
 	@echo "  help        Show this help message"
@@ -27,6 +28,13 @@ install: build
 
 uninstall:
 	@sudo ./scripts/uninstall.sh
+
+update:
+	@echo "Updating dependencies..."
+	@go get -u ./...
+	@go mod tidy
+	@echo "Dependencies updated."
+
 
 clean:
 	@sudo rm -f $(BUILD_DIR)/$(BINARY_NAME)

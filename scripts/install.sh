@@ -3,6 +3,11 @@
 # Install script for Server Status Reporter
 set -e
 
+INSTALL_DIR="/opt/serverstatus"
+LOG_DIR="/var/log/serverstatus"
+CONFIG_DIR="/etc/serverstatus"
+SERVICE_DIR="/etc/systemd/system"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -19,30 +24,30 @@ fi
 
 # Create necessary directories
 echo -e "${YELLOW}Creating directories...${NC}"
-mkdir -p /opt/serverstatus
-mkdir -p /var/log/serverstatus
-mkdir -p /etc/serverstatus
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$LOG_DIR"
+mkdir -p "$CONFIG_DIR"
 
 # Copy files
 echo -e "${YELLOW}Copying files...${NC}"
-cp serverstatus /opt/serverstatus/
-cp scripts/serverstatus.service /etc/systemd/system/
-cp scripts/serverstatus.timer /etc/systemd/system/
+cp serverstatus "$INSTALL_DIR/"
+cp scripts/serverstatus.service "$SERVICE_DIR/"
+cp scripts/serverstatus.timer "$SERVICE_DIR/"
 cp scripts/logrotate.conf /etc/logrotate.d/serverstatus
 
 # Set permissions
 echo -e "${YELLOW}Setting permissions...${NC}"
-chown -R root:root /opt/serverstatus
-chmod 755 /opt/serverstatus
-chmod 755 /opt/serverstatus/serverstatus
-chmod 644 /etc/systemd/system/serverstatus.service
-chmod 644 /etc/systemd/system/serverstatus.timer
+chown -R root:root "$INSTALL_DIR"
+chmod 755 "$INSTALL_DIR"
+chmod 755 "$INSTALL_DIR/serverstatus"
+chmod 644 "$SERVICE_DIR/serverstatus.service"
+chmod 644 "$SERVICE_DIR/serverstatus.timer"
 
 # Configure environment
-if [ ! -f "/etc/serverstatus/.env" ]; then
+if [ ! -f "$CONFIG_DIR/.env" ]; then
     echo -e "${YELLOW}Setting up environment configuration...${NC}"
-    cp .env.example /etc/serverstatus/.env
-    echo "Please edit /etc/serverstatus/.env with your email settings"
+    cp .env.example "$CONFIG_DIR/.env"
+    echo "Please edit $CONFIG_DIR/.env with your email settings"
 fi
 
 # Reload systemd
@@ -52,5 +57,5 @@ systemctl enable serverstatus.timer
 systemctl start serverstatus.timer
 
 echo -e "${GREEN}Installation complete!${NC}"
-echo -e "${YELLOW}Please edit /etc/serverstatus/.env with your email settings${NC}"
+echo -e "${YELLOW}Please edit $CONFIG_DIR/.env with your email settings${NC}"
 echo -e "${YELLOW}The service will run daily at 8 AM EST${NC}"

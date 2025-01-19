@@ -3,11 +3,13 @@ package metrics
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Certificate represents a Certbot certificate
@@ -22,18 +24,23 @@ type Certificate struct {
 
 // GetCertbotCerts retrieves Certbot certificates
 func GetCertbotCerts() ([]Certificate, error) {
-	cmd := exec.Command("certbot", "certificates")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "certbot", "certificates")
 	var out bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &out
+
 	err := cmd.Run()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to run certbot command: %v, output: %s", err, out.String())
 	}
 
 	output := out.String()
 	lines := strings.Split(output, "\n")
 	if len(lines) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("no output from certbot command")
 	}
 
 	var certs []Certificate

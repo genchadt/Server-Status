@@ -1,60 +1,47 @@
-// metrics/disk_details.go
 package metrics
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"html/template"
-	"os/exec"
-	"strings"
-	"time"
+
+	"github.com/shirou/gopsutil/disk"
 )
 
 // DiskUsage represents disk usage information
 type DiskUsage struct {
-	Filesystem string
-	Size       string
-	Used       string
-	Available  string
-	UsePercent string
-	MountedOn  string
+	Device      string
+	Mountpoint  string
+	Fstype      string
+	Total       string
+	Free        string
+	Used        string
+	UsedPercent float64
 }
 
 // GetDiskDetails retrieves disk usage information
 func GetDiskDetails() ([]DiskUsage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "df", "-h")
-	out, err := cmd.Output()
+	parts, err := disk.Partitions(true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve disk details: %v", err)
-	}
-
-	lines := strings.Split(string(out), "\n")
-	if len(lines) < 2 {
-		return nil, fmt.Errorf("no disk information available")
+		return nil, fmt.Errorf("failed to retrieve disk partitions: %v", err)
 	}
 
 	var diskUsages []DiskUsage
 
-	for _, line := range lines[1:] {
-		if line == "" {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 6 {
-			continue
+	for _, part := range parts {
+		usage, err := disk.Usage(part.Mountpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve disk usage for %s: %v", part.Mountpoint, err)
 		}
 
 		diskUsages = append(diskUsages, DiskUsage{
-			Filesystem: fields[0],
-			Size:       fields[1],
-			Used:       fields[2],
-			Available:  fields[3],
-			UsePercent: fields[4],
-			MountedOn:  fields[5],
+			Device:      part.Device,
+			Mountpoint:  part.Mountpoint,
+			Fstype:      part.Fstype,
+			Total:       fmt.Sprintf("%.2f GB", float64(usage.Total)/1024/1024/1024),
+			Free:        fmt.Sprintf("%.2f GB", float64(usage.Free)/1024/1024/1024),
+			Used:        fmt.Sprintf("%.2f GB", float64(usage.Used)/1024/1024/1024),
+			UsedPercent: usage.UsedPercent,
 		})
 	}
 
@@ -69,21 +56,23 @@ func FormatDiskDetails(diskUsages []DiskUsage) (string, error) {
 
 	tmpl := `<table border="1">
     <tr>
-        <th>Filesystem</th>
-        <th>Size</th>
+        <th>Device</th>
+        <th>Mountpoint</th>
+        <th>Fstype</th>
+        <th>Total</th>
+        <th>Free</th>
         <th>Used</th>
-        <th>Available</th>
-        <th>Use%</th>
-        <th>Mounted On</th>
+        <th>Used%</th>
     </tr>
     {{range .}}
     <tr>
-        <td>{{.Filesystem}}</td>
-        <td>{{.Size}}</td>
+        <td>{{.Device}}</td>
+        <td>{{.Mountpoint}}</td>
+        <td>{{.Fstype}}</td>
+        <td>{{.Total}}</td>
+        <td>{{.Free}}</td>
         <td>{{.Used}}</td>
-        <td>{{.Available}}</td>
-        <td>{{.UsePercent}}</td>
-        <td>{{.MountedOn}}</td>
+        <td>{{.UsedPercent}}%</td>
     </tr>
     {{end}}
     </table>`

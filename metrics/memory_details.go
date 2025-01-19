@@ -5,51 +5,37 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"os/exec"
-	"strings"
+	"serverstatus/utils"
+
+	"github.com/shirou/gopsutil/mem"
 )
 
 // MemoryData represents memory usage information
 type MemoryData struct {
-	Headers []string
-	Data    []map[string]string
+	Total       string
+	Used        string
+	Free        string
+	UsedPercent float64
 }
 
 // GetMemoryDetails retrieves memory usage details
 func GetMemoryDetails() (*MemoryData, error) {
-	cmd := exec.Command("free", "-h")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
+	// Use gopsutil to get memory information
+	memoryInfo, err := mem.VirtualMemory()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve memory details: %v", err)
 	}
 
-	lines := strings.Split(out.String(), "\n")
-	if len(lines) < 3 {
-		return nil, err
-	}
-
-	headers := strings.Fields(lines[0])
-	var data []map[string]string
-
-	for _, line := range lines[1:3] {
-		if line == "" {
-			continue
-		}
-		fields := strings.Fields(line)
-		row := make(map[string]string)
-		for i, header := range headers {
-			if i < len(fields) {
-				row[header] = fields[i]
-			}
-		}
-		data = append(data, row)
-	}
+	// Convert memory values to human-readable format
+	total := utils.FormatBytes(memoryInfo.Total)
+	used := utils.FormatBytes(memoryInfo.Used)
+	free := utils.FormatBytes(memoryInfo.Free)
 
 	return &MemoryData{
-		Headers: headers,
-		Data:    data,
+		Total:       total,
+		Used:        used,
+		Free:        free,
+		UsedPercent: memoryInfo.UsedPercent,
 	}, nil
 }
 
@@ -58,15 +44,20 @@ func FormatMemoryDetails(memoryData *MemoryData) (string, error) {
 	if memoryData == nil {
 		return "<p>Unable to retrieve memory details.</p>", fmt.Errorf("nil MemoryData provided")
 	}
+
 	tmpl := `<table border="1">
     <tr>
-    {{range $key := .Headers}}<th>{{$key}}</th>{{end}}
+        <th>Total</th>
+        <th>Used</th>
+        <th>Free</th>
+        <th>Used%</th>
     </tr>
-    {{range .Data}}
     <tr>
-        {{range $key := $.Headers}}<td>{{index . $key}}</td>{{end}}
+        <td>{{.Total}}</td>
+        <td>{{.Used}}</td>
+        <td>{{.Free}}</td>
+        <td>{{.UsedPercent}}%</td>
     </tr>
-    {{end}}
     </table>`
 
 	t := template.Must(template.New("memoryDetails").Parse(tmpl))

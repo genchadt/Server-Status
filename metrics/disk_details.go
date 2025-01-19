@@ -31,7 +31,8 @@ func GetDiskDetails() ([]DiskUsage, error) {
 	for _, part := range parts {
 		usage, err := disk.Usage(part.Mountpoint)
 		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve disk usage for %s: %v", part.Mountpoint, err)
+			fmt.Printf("Warning: failed to retrieve disk usage for %s: %v\n", part.Mountpoint, err)
+			continue
 		}
 
 		diskUsages = append(diskUsages, DiskUsage{

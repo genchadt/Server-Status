@@ -5,8 +5,13 @@ import (
 	"fmt"
 	"html/template"
 
+	"serverstatus/logger"
+
 	"github.com/shirou/gopsutil/disk"
 )
+
+// Initialize a logger instance for the metrics package
+var log, err = logger.NewFileLogger("logs/metrics.log")
 
 // DiskUsage represents disk usage information
 type DiskUsage struct {
@@ -31,7 +36,8 @@ func GetDiskDetails() ([]DiskUsage, error) {
 	for _, part := range parts {
 		usage, err := disk.Usage(part.Mountpoint)
 		if err != nil {
-			fmt.Printf("Warning: failed to retrieve disk usage for %s: %v\n", part.Mountpoint, err)
+			// Log the error using the logger
+			log.Error("failed to retrieve disk usage for %s: %v", part.Mountpoint, err)
 			continue
 		}
 

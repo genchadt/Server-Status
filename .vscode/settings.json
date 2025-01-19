@@ -1,5 +1,7 @@
 {
     "cSpell.words": [
+        "crowdsec",
+        "cscli",
         "godotenv",
         "gofmt",
         "golangci",

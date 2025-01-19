@@ -1,7 +1,12 @@
 {
     "cSpell.words": [
         "godotenv",
+        "gofmt",
+        "golangci",
         "joho",
-        "serverstatus"
+        "netlink",
+        "Oper",
+        "serverstatus",
+        "vishvananda"
     ]
 }

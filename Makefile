@@ -24,10 +24,10 @@ build:
 	@./scripts/build.sh
 
 install: build
-	@sudo INSTALL_DIR=$(INSTALL_DIR) LOG_DIR=$(LOG_DIR) CONFIG_DIR=$(CONFIG_DIR) ./scripts/install.sh
+	@INSTALL_DIR=$(INSTALL_DIR) LOG_DIR=$(LOG_DIR) CONFIG_DIR=$(CONFIG_DIR) ./scripts/install.sh
 
 uninstall:
-	@sudo ./scripts/uninstall.sh
+	@./scripts/uninstall.sh
 
 update:
 	@echo "Updating dependencies..."
@@ -35,16 +35,14 @@ update:
 	@go mod tidy
 	@echo "Dependencies updated."
 
-
 clean:
-	@sudo rm -f $(BUILD_DIR)/$(BINARY_NAME)
-	@sudo rm -rf $(LOG_DIR)
-	@sudo rm -rf $(CONFIG_DIR)
+	@rm -f $(BUILD_DIR)/$(BINARY_NAME)
+	@rm -rf $(LOG_DIR)
+	@rm -rf $(CONFIG_DIR)
 
 test:
 	@echo "Running tests..."
-	# Placeholder
-	@echo "Tests completed."
+	@go test ./...
 
 format:
 	@echo "Formatting code..."

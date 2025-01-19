@@ -1,8 +1,8 @@
 [Unit]
-Description=Run Server Status Report daily at 8 AM EST
+Description=Run Server Status Report daily
 
 [Timer]
-OnCalendar=*-*-* 08:00:00 America/New_York
+OnCalendar=*-*-* 00:00:00 America/New_York
 Persistent=true
 
 [Install]

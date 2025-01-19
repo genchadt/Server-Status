@@ -121,10 +121,17 @@ func collectMetrics(logger *logger.FileLogger) MetricsData {
 
 	logger.Info("Collecting CPU load details...")
 	cpuLoad, err := metrics.GetCPULoad()
+	var cpuLoadDetails string
 	if err != nil {
 		logger.Error("Failed to get CPU load details: %v", err)
+		cpuLoadDetails = "<p>Unable to retrieve CPU load details.</p>"
+	} else {
+		cpuLoadDetails, err = metrics.FormatCPULoad(cpuLoad) // Now expects string, error
+		if err != nil {
+			logger.Error("Failed to format CPU load details: %v", err)
+			cpuLoadDetails = "<p>Unable to format CPU load details.</p>"
+		}
 	}
-	cpuLoadDetails := metrics.FormatCPULoad(cpuLoad)
 
 	logger.Info("Collecting memory details...")
 	memoryData, err := metrics.GetMemoryDetails()

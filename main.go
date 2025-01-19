@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -53,18 +55,74 @@ func main() {
 	setupGracefulShutdown(log)
 
 	// Metrics collection with error logging and timeout
-	serverUptime := metrics.GetUptime()
-	lastRebootTime := metrics.GetLastRebootTime()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	// Collect all metrics with logging
-	metricsData := collectMetrics(log)
+	var wg sync.WaitGroup
+	metricsData := MetricsData{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.PackageUpdates = collectMetric(ctx, log, "package updates", metrics.GetPackageUpdates, metrics.FormatPackageUpdates)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.DiskDetails = collectMetric(ctx, log, "disk details", metrics.GetDiskDetails, metrics.FormatDiskDetails)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.CPULoadDetails = collectMetric(ctx, log, "CPU load details", metrics.GetCPULoad, metrics.FormatCPULoad)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.MemoryDetails = collectMetric(ctx, log, "memory details", metrics.GetMemoryDetails, metrics.FormatMemoryDetails)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.ActiveSSH = collectMetric(ctx, log, "active SSH sessions", metrics.GetActiveSSHSessions, metrics.FormatActiveSSHSessions)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.PreviousSSH = collectMetric(ctx, log, "previous SSH sessions", metrics.GetPreviousSSHSessions, metrics.FormatPreviousSSHSessions)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.NetworkDetails = collectMetric(ctx, log, "network details", metrics.GetNetworkDetails, metrics.FormatNetworkDetails)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.CrowdSecAlerts = collectMetric(ctx, log, "CrowdSec alerts", metrics.GetCrowdSecAlerts, metrics.FormatCrowdSecAlerts)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		metricsData.CrowdSecDecisions = collectMetric(ctx, log, "CrowdSec decisions", metrics.GetCrowdSecDecisions, metrics.FormatCrowdSecDecisions)
+	}()
+
+	wg.Wait()
 
 	// Construct Email Body
 	emailData := email.EmailData{
 		ServerHostname:    serverHostname,
 		ServerTime:        time.Now().Format("Mon Jan 2 15:04:05 MST 2006"),
-		ServerUptime:      serverUptime,
-		LastRebootTime:    lastRebootTime,
+		ServerUptime:      metrics.GetUptime(),
+		LastRebootTime:    metrics.GetLastRebootTime(),
 		PackageUpdates:    metricsData.PackageUpdates,
 		DiskDetails:       metricsData.DiskDetails,
 		MemoryDetails:     metricsData.MemoryDetails,
@@ -103,90 +161,33 @@ type MetricsData struct {
 	CrowdSecDecisions string
 }
 
-// collectMetrics gathers all system metrics with logging
-func collectMetrics(logger *logger.FileLogger) MetricsData {
-	logger.Info("Collecting package updates...")
-	packageUpdatesData, err := metrics.GetPackageUpdates()
-	if err != nil {
-		logger.Error("Failed to get package updates: %v", err)
-	}
-	packageUpdates := formatMetric(logger, "package updates", packageUpdatesData, metrics.FormatPackageUpdates)
+// collectMetric is a generic helper function to collect and format metrics with context
+func collectMetric[T any](ctx context.Context, logger *logger.FileLogger, metricName string, getFunc func() (T, error), formatFunc func(T) (string, error)) string {
+	var data T
+	var err error
 
-	logger.Info("Collecting disk details...")
-	diskDetailsData, err := metrics.GetDiskDetails()
-	if err != nil {
-		logger.Error("Failed to get disk details: %v", err)
-	}
-	diskDetailsHTML := formatMetric(logger, "disk details", diskDetailsData, metrics.FormatDiskDetails)
+	done := make(chan struct{})
+	go func() {
+		data, err = getFunc()
+		close(done)
+	}()
 
-	logger.Info("Collecting CPU load details...")
-	cpuLoadData, err := metrics.GetCPULoad()
-	if err != nil {
-		logger.Error("Failed to get CPU load details: %v", err)
+	select {
+	case <-ctx.Done():
+		logger.Error("Timeout while collecting %s: %v", metricName, ctx.Err())
+		return fmt.Sprintf("<p>Timeout while collecting %s.</p>", metricName)
+	case <-done:
+		if err != nil {
+			logger.Error("Failed to get %s: %v", metricName, err)
+			return fmt.Sprintf("<p>Unable to get %s.</p>", metricName)
+		}
+		formatted, err := formatFunc(data)
+		if err != nil {
+			logger.Error("Failed to format %s: %v", metricName, err)
+			return fmt.Sprintf("<p>Unable to format %s.</p>", metricName)
+		}
+		return formatted
 	}
-	cpuLoadDetails := formatMetric(logger, "CPU load details", cpuLoadData, metrics.FormatCPULoad)
-
-	logger.Info("Collecting memory details...")
-	memoryData, err := metrics.GetMemoryDetails()
-	if err != nil {
-		logger.Error("Failed to get memory details: %v", err)
-	}
-	memoryDetails := formatMetric(logger, "memory details", memoryData, metrics.FormatMemoryDetails)
-
-	logger.Info("Collecting SSH session information...")
-	activeSSHData, err := metrics.GetActiveSSHSessions()
-	if err != nil {
-		logger.Error("Failed to get active SSH sessions: %v", err)
-	}
-	activeSSH := formatMetric(logger, "active SSH sessions", activeSSHData, metrics.FormatActiveSSHSessions)
-
-	previousSSHData, err := metrics.GetPreviousSSHSessions()
-	if err != nil {
-		logger.Error("Failed to get previous SSH sessions: %v", err)
-	}
-	previousSSH := formatMetric(logger, "previous SSH sessions", previousSSHData, metrics.FormatPreviousSSHSessions)
-
-	logger.Info("Collecting network details...")
-	networkData, err := metrics.GetNetworkDetails()
-	if err != nil {
-		logger.Error("Failed to get network details: %v", err)
-	}
-	networkDetails := formatMetric(logger, "network details", networkData, metrics.FormatNetworkDetails)
-
-	logger.Info("Collecting CrowdSec information...")
-	crowdSecAlertsData, err := metrics.GetCrowdSecAlerts()
-	if err != nil {
-		logger.Error("Failed to get CrowdSec alerts: %v", err)
-	}
-	crowdSecAlerts := formatMetric(logger, "CrowdSec alerts", crowdSecAlertsData, metrics.FormatCrowdSecAlerts)
-
-	crowdSecDecisionsData, err := metrics.GetCrowdSecDecisions()
-	if err != nil {
-		logger.Error("Failed to get CrowdSec decisions: %v", err)
-	}
-	crowdSecDecisions := formatMetric(logger, "CrowdSec decisions", crowdSecDecisionsData, metrics.FormatCrowdSecDecisions)
-
-	return MetricsData{
-		PackageUpdates:    packageUpdates,
-		DiskDetails:       diskDetailsHTML,
-		CPULoadDetails:    cpuLoadDetails,
-		MemoryDetails:     memoryDetails,
-		ActiveSSH:         activeSSH,
-		PreviousSSH:       previousSSH,
-		NetworkDetails:    networkDetails,
-		CrowdSecAlerts:    crowdSecAlerts,
-		CrowdSecDecisions: crowdSecDecisions,
-	}
-}
-
-// formatMetric is a generic helper function to format metrics and handle errors
-func formatMetric[T any](logger *logger.FileLogger, metricName string, data T, formatFunc func(T) (string, error)) string {
-	formatted, err := formatFunc(data)
-	if err != nil {
-		logger.Error("Failed to format %s: %v", metricName, err)
-		return fmt.Sprintf("<p>Unable to format %s.</p>", metricName)
-	}
-	return formatted
 }
 
 // sendReport sends the email report

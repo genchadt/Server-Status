@@ -2,78 +2,59 @@ package email
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 )
 
-// ConstructEmailBody generates an HTML email body containing server status information
-// using the provided EmailData. The email includes details such as server time, uptime,
-// package updates, disk and memory usage, CPU load, SSH sessions, network details, and
-// CrowdSec alerts and decisions. The email body is styled with basic CSS for readability.
-func ConstructEmailBody(data EmailData) string {
+// ConstructEmailBody generates an HTML email body using structured data
+func ConstructEmailBody(data EmailData) (string, error) {
 	tmpl := `
     <html>
         <head>
             <style>
-                body {
-                    font-family: Arial, sans-serif;
-                }
-                h1 {
-                    font-size: 24px;
-                    color: #333333;
-                }
-                h2 {
-                    font-size: 20px;
-                    color: #555555;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                table, th, td {
-                    border: 1px solid #dddddd;
-                }
-                th, td {
-                    padding: 8px;
-                    text-align: left;
-                }
-                th {
-                    background-color: #f2f2f2;
-                    color: #333333;
-                }
-                tr:nth-child(even) {
-                    background-color: #f9f9f9;
-                }
+                body { font-family: Arial, sans-serif; }
+                h1 { font-size: 24px; color: #333333; }
+                h2 { font-size: 20px; color: #555555; }
+                table { width: 100%; border-collapse: collapse; }
+                table, th, td { border: 1px solid #dddddd; }
+                th, td { padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; color: #333333; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
             </style>
         </head>
         <body>
             <h1>Server Status Report: {{.ServerHostname}}</h1>
             <h2>Server Time:</h2>
-                <p>{{.ServerTime}}</p>
+            <p>{{.ServerTime}}</p>
             <h2>Uptime:</h2>
-                <p>{{.ServerUptime}}</p>
+            <p>{{.ServerUptime}}</p>
             <h2>Available Package Updates:</h2>
-                <p>{{.PackageUpdates}}</p>
+            <p>{{.PackageUpdates}}</p>
             <h2>Disk Information:</h2>
-                <p>{{.DiskDetails}}</p>
+            {{.DiskDetails}}
             <h2>Memory Usage:</h2>
-                <p>{{.MemoryDetails}}</p>
+            <p>{{.MemoryDetails}}</p>
             <h2>CPU Load:</h2>
-                <p>{{.CPULoadDetails}}</p>
+            <p>{{.CPULoadDetails}}</p>
             <h2>Active SSH Sessions:</h2>
-                <p>{{.ActiveSSH}}</p>
+            <p>{{.ActiveSSH}}</p>
             <h2>Previous SSH Sessions:</h2>
-                <p>{{.PreviousSSH}}</p>
+            <p>{{.PreviousSSH}}</p>
             <h2>Network Information:</h2>
-                <p>{{.NetworkDetails}}</p>
+            <p>{{.NetworkDetails}}</p>
             <h2>CrowdSec Alerts:</h2>
-                <p>{{.CrowdSecAlerts}}</p>
+            <p>{{.CrowdSecAlerts}}</p>
             <h2>CrowdSec Decisions:</h2>
-                <p>{{.CrowdSecDecisions}}</p>
+            <p>{{.CrowdSecDecisions}}</p>
         </body>
     </html>
     `
+
 	t := template.Must(template.New("emailBody").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, data)
-	return htmlOut.String()
+	if err := t.Execute(&htmlOut, data); err != nil {
+		return "", fmt.Errorf("failed to execute email template: %v", err)
+	}
+
+	return htmlOut.String(), nil
 }

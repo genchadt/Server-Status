@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 type Config struct {
@@ -16,9 +17,20 @@ type Config struct {
 	ToEmail                string
 	ServerHostname         string
 	SmtpInsecureSkipVerify bool
+	DailyReportTime        time.Duration
 }
 
 func LoadConfig() (*Config, error) {
+	dailyReportTimeStr := os.Getenv("DAILY_REPORT_TIME")
+	if dailyReportTimeStr == "" {
+		dailyReportTimeStr = "08:00" // Default to 8 AM
+	}
+
+	dailyReportTime, err := parseTime(dailyReportTimeStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid DAILY_REPORT_TIME format: %v", err)
+	}
+
 	skipVerify := false
 	if os.Getenv("SMTP_INSECURE_SKIP_VERIFY") == "true" {
 		skipVerify = true
@@ -33,6 +45,7 @@ func LoadConfig() (*Config, error) {
 		ToEmail:                os.Getenv("TO_EMAIL"),
 		ServerHostname:         os.Getenv("SERVER_HOSTNAME"),
 		SmtpInsecureSkipVerify: skipVerify,
+		DailyReportTime:        dailyReportTime,
 	}
 
 	// Validate required configuration
@@ -56,4 +69,19 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// parseTime parses a time string in HH:MM format and returns a time.Duration
+func parseTime(timeStr string) (time.Duration, error) {
+	var hour, minute int
+	_, err := fmt.Sscanf(timeStr, "%d:%d", &hour, &minute)
+	if err != nil {
+		return 0, err
+	}
+
+	if hour < 0 || hour > 23 || minute < 0 || minute > 59 {
+		return 0, fmt.Errorf("invalid time format: %s", timeStr)
+	}
+
+	return time.Duration(hour)*time.Hour + time.Duration(minute)*time.Minute, nil
 }

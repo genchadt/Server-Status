@@ -24,21 +24,21 @@ func main() {
 	log, err := logger.NewFileLogger(logPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
-		os.Exit(1)
+		handleFatalError(log, "Failed to initialize logger: %v", err)
 	}
 	defer log.Close()
 
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Error("Failed to load .env file: %v", err)
-		os.Exit(1)
+		handleFatalError(log, "Failed to load .env file: %v", err)
 	}
 
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Error("Failed to load configuration: %v", err)
-		os.Exit(1)
+		handleFatalError(log, "Failed to load configuration: %v", err)
 	}
 
 	// Log start of execution
@@ -136,13 +136,13 @@ func main() {
 	emailBody, err := email.ConstructEmailBody(emailData)
 	if err != nil {
 		log.Error("Failed to construct email body: %v", err)
-		os.Exit(1)
+		handleFatalError(log, "Failed to construct email body: %v", err)
 	}
 
 	// Send Email
 	if err := sendReport(emailBody, log, cfg); err != nil {
 		log.Error("Failed to send email: %v", err)
-		os.Exit(1)
+		handleFatalError(log, "Failed to send email: %v", err)
 	}
 
 	log.Info("Server status check completed successfully")
@@ -206,6 +206,12 @@ func sendReport(emailBody string, logger *logger.FileLogger, cfg *config.Config)
 
 	logger.LogEmailSuccess(recipient)
 	return nil
+}
+
+func handleFatalError(log *logger.FileLogger, message string, err error) {
+	log.Error(message, err)
+	log.Close()
+	os.Exit(1)
 }
 
 // setupGracefulShutdown handles graceful shutdown of the application

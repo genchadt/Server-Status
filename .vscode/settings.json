@@ -2,13 +2,19 @@
     "cSpell.words": [
         "crowdsec",
         "cscli",
+        "Fstype",
         "godotenv",
         "gofmt",
         "golangci",
+        "gopsutil",
         "joho",
+        "KMGTPE",
+        "Mountpoint",
         "netlink",
         "Oper",
         "serverstatus",
-        "vishvananda"
+        "shirou",
+        "vishvananda",
+        "wtmp"
     ]
 }

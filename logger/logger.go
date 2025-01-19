@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 type Logger interface {
@@ -17,6 +18,7 @@ type Logger interface {
 type FileLogger struct {
 	logger *log.Logger
 	file   *os.File
+	mu     sync.Mutex
 }
 
 // NewFileLogger creates a new FileLogger instance
@@ -34,7 +36,7 @@ func NewFileLogger(logPath string) (*FileLogger, error) {
 	}
 
 	// Create the logger with timestamp
-	logger := log.New(file, "", log.Ldate|log.Ltime)
+	logger := log.New(file, "", log.Ldate|log.Ltime|log.Lmicroseconds)
 
 	return &FileLogger{
 		logger: logger,
@@ -43,14 +45,20 @@ func NewFileLogger(logPath string) (*FileLogger, error) {
 }
 
 func (l *FileLogger) Error(format string, v ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.logger.Printf("[ERROR] "+format, v...)
 }
 
 func (l *FileLogger) Info(format string, v ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.logger.Printf("[INFO] "+format, v...)
 }
 
 func (l *FileLogger) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if l.file != nil {
 		return l.file.Close()
 	}

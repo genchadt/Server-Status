@@ -3,6 +3,7 @@ package metrics
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os/exec"
 	"strings"
@@ -54,9 +55,9 @@ func GetPackageUpdates() ([]PackageUpdate, error) {
 }
 
 // FormatPackageUpdates formats package updates into an HTML table
-func FormatPackageUpdates(data []PackageUpdate) string {
+func FormatPackageUpdates(data []PackageUpdate) (string, error) {
 	if len(data) == 0 {
-		return "<p>All packages are up to date.</p>"
+		return "<p>All packages are up to date.</p>", nil
 	}
 
 	tmpl := `<table border="1">
@@ -67,6 +68,9 @@ func FormatPackageUpdates(data []PackageUpdate) string {
     </table>`
 	t := template.Must(template.New("packageUpdates").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, data)
-	return htmlOut.String()
+	err := t.Execute(&htmlOut, data)
+	if err != nil {
+		return "<p>Error formatting package updates</p>", fmt.Errorf("error executing template: %v", err)
+	}
+	return htmlOut.String(), nil
 }

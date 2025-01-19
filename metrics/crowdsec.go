@@ -4,6 +4,7 @@ package metrics
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"html/template"
 	"os/exec"
 	"serverstatus/utils"
@@ -83,10 +84,9 @@ func GetCrowdSecAlerts() ([]Alert, error) {
 	return alerts, nil
 }
 
-// FormatCrowdSecAlerts formats CrowdSec alerts into an HTML table
-func FormatCrowdSecAlerts(alerts []Alert) string {
+func FormatCrowdSecAlerts(alerts []Alert) (string, error) {
 	if len(alerts) == 0 {
-		return "<p>No alerts available.</p>"
+		return "<p>No alerts available.</p>", nil
 	}
 
 	tmpl := `<table border="1">
@@ -118,10 +118,10 @@ func FormatCrowdSecAlerts(alerts []Alert) string {
 	var htmlOut bytes.Buffer
 	err := t.Execute(&htmlOut, alerts)
 	if err != nil {
-		return "<p>Error generating CrowdSec alerts table.</p>"
+		return "<p>Error generating CrowdSec alerts table.</p>", fmt.Errorf("error executing template: %v", err)
 	}
 
-	return htmlOut.String()
+	return htmlOut.String(), nil
 }
 
 // GetCrowdSecDecisions retrieves CrowdSec decisions
@@ -174,9 +174,9 @@ func GetCrowdSecDecisions() ([]Decision, error) {
 }
 
 // FormatCrowdSecDecisions formats CrowdSec decisions into an HTML table
-func FormatCrowdSecDecisions(decisions []Decision) string {
+func FormatCrowdSecDecisions(decisions []Decision) (string, error) {
 	if len(decisions) == 0 {
-		return "<p>No decisions available.</p>"
+		return "<p>No decisions available.</p>", nil
 	}
 
 	tmpl := `<table border="1">
@@ -214,8 +214,8 @@ func FormatCrowdSecDecisions(decisions []Decision) string {
 	var htmlOut bytes.Buffer
 	err := t.Execute(&htmlOut, decisions)
 	if err != nil {
-		return "<p>Error generating CrowdSec decisions table.</p>"
+		return "<p>Error generating CrowdSec decisions table.</p>", fmt.Errorf("error executing template: %v", err)
 	}
 
-	return htmlOut.String()
+	return htmlOut.String(), nil
 }

@@ -1,7 +1,9 @@
+// metrics/network_details.go
 package metrics
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"serverstatus/utils"
 
@@ -48,9 +50,9 @@ func GetNetworkDetails() ([]NetworkInterface, error) {
 }
 
 // FormatNetworkDetails formats network details into an HTML table
-func FormatNetworkDetails(data []NetworkInterface) string {
+func FormatNetworkDetails(data []NetworkInterface) (string, error) {
 	if len(data) == 0 {
-		return "<p>No network information available.</p>"
+		return "<p>No network information available.</p>", nil
 	}
 
 	tmpl := `<table border="1">
@@ -68,9 +70,9 @@ func FormatNetworkDetails(data []NetworkInterface) string {
 	var htmlOut bytes.Buffer
 	err := t.Execute(&htmlOut, data)
 	if err != nil {
-		return "<p>Error formatting network details.</p>"
+		return "<p>Error formatting network details.</p>", fmt.Errorf("error executing template: %v", err)
 	}
-	return htmlOut.String()
+	return htmlOut.String(), nil
 }
 
 // Helper function to convert netlink.LinkOperState to string

@@ -3,6 +3,7 @@ package metrics
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os/exec"
 	"regexp"
@@ -77,9 +78,9 @@ func GetCertbotCerts() ([]Certificate, error) {
 }
 
 // FormatCertbotCerts formats Certbot certificates into an HTML table
-func FormatCertbotCerts(certs []Certificate) string {
+func FormatCertbotCerts(certs []Certificate) (string, error) {
 	if len(certs) == 0 {
-		return "<p>No Certbot certificates found.</p>"
+		return "<p>No Certbot certificates found.</p>", nil
 	}
 
 	tmpl := `<table border="1">
@@ -107,8 +108,8 @@ func FormatCertbotCerts(certs []Certificate) string {
 	var htmlOut bytes.Buffer
 	err := t.Execute(&htmlOut, certs)
 	if err != nil {
-		return "<p>Unable to render Certbot certificates</p>"
+		return "<p>Unable to render Certbot certificates</p>", fmt.Errorf("error executing template: %v", err)
 	}
 
-	return htmlOut.String()
+	return htmlOut.String(), nil
 }

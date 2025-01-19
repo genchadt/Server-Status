@@ -3,6 +3,7 @@ package metrics
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os/exec"
 	"serverstatus/utils"
@@ -59,9 +60,9 @@ func GetActiveSSHSessions() ([]ActiveSession, error) {
 }
 
 // FormatActiveSSHSessions formats active SSH sessions into an HTML table
-func FormatActiveSSHSessions(data []ActiveSession) string {
+func FormatActiveSSHSessions(data []ActiveSession) (string, error) {
 	if len(data) == 0 {
-		return "<p>No active SSH sessions found.</p>"
+		return "<p>No active SSH sessions found.</p>", nil
 	}
 
 	tmpl := `<table border="1">
@@ -78,8 +79,11 @@ func FormatActiveSSHSessions(data []ActiveSession) string {
 
 	t := template.Must(template.New("activeSSH").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, data)
-	return htmlOut.String()
+	err := t.Execute(&htmlOut, data)
+	if err != nil {
+		return "<p>Error formatting active SSH sessions</p>", fmt.Errorf("error executing template: %v", err)
+	}
+	return htmlOut.String(), nil
 }
 
 // GetPreviousSSHSessions retrieves previous SSH sessions
@@ -119,9 +123,9 @@ func GetPreviousSSHSessions() ([]PreviousSession, error) {
 }
 
 // FormatPreviousSSHSessions formats previous SSH sessions into an HTML table
-func FormatPreviousSSHSessions(data []PreviousSession) string {
+func FormatPreviousSSHSessions(data []PreviousSession) (string, error) {
 	if len(data) == 0 {
-		return "<p>No recent SSH logins found.</p>"
+		return "<p>No recent SSH logins found.</p>", nil
 	}
 
 	tmpl := `<table border="1">
@@ -139,6 +143,9 @@ func FormatPreviousSSHSessions(data []PreviousSession) string {
 
 	t := template.Must(template.New("previousSSH").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, data)
-	return htmlOut.String()
+	err := t.Execute(&htmlOut, data)
+	if err != nil {
+		return "<p>Error formatting previous SSH sessions</p>", fmt.Errorf("error executing template: %v", err)
+	}
+	return htmlOut.String(), nil
 }

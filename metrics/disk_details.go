@@ -62,9 +62,9 @@ func GetDiskDetails() ([]DiskUsage, error) {
 }
 
 // FormatDiskDetails takes the disk usage data and formats it into an HTML table string.
-func FormatDiskDetails(diskUsages []DiskUsage) string {
+func FormatDiskDetails(diskUsages []DiskUsage) (string, error) {
 	if len(diskUsages) == 0 {
-		return "<p>No disk information available.</p>"
+		return "<p>No disk information available.</p>", nil
 	}
 
 	tmpl := `<table border="1">
@@ -90,6 +90,9 @@ func FormatDiskDetails(diskUsages []DiskUsage) string {
 
 	t := template.Must(template.New("diskDetails").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, diskUsages)
-	return htmlOut.String()
+	err := t.Execute(&htmlOut, diskUsages)
+	if err != nil {
+		return "<p>Error formatting disk details</p>", fmt.Errorf("error executing template: %v", err)
+	}
+	return htmlOut.String(), nil
 }

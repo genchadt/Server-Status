@@ -3,6 +3,7 @@ package metrics
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os/exec"
 	"strings"
@@ -53,9 +54,9 @@ func GetMemoryDetails() (*MemoryData, error) {
 }
 
 // FormatMemoryDetails formats memory details into an HTML table
-func FormatMemoryDetails(memoryData *MemoryData) string {
+func FormatMemoryDetails(memoryData *MemoryData) (string, error) {
 	if memoryData == nil {
-		return "<p>Unable to retrieve memory details.</p>"
+		return "<p>Unable to retrieve memory details.</p>", fmt.Errorf("nil MemoryData provided")
 	}
 	tmpl := `<table border="1">
     <tr>
@@ -70,6 +71,9 @@ func FormatMemoryDetails(memoryData *MemoryData) string {
 
 	t := template.Must(template.New("memoryDetails").Parse(tmpl))
 	var htmlOut bytes.Buffer
-	t.Execute(&htmlOut, memoryData)
-	return htmlOut.String()
+	err := t.Execute(&htmlOut, memoryData)
+	if err != nil {
+		return "<p>Error formatting memory details</p>", fmt.Errorf("error executing template: %v", err)
+	}
+	return htmlOut.String(), nil
 }

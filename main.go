@@ -110,68 +110,61 @@ func collectMetrics(logger *logger.FileLogger) MetricsData {
 	if err != nil {
 		logger.Error("Failed to get package updates: %v", err)
 	}
-	packageUpdates := metrics.FormatPackageUpdates(packageUpdatesData)
+	packageUpdates := formatMetric(logger, "package updates", packageUpdatesData, metrics.FormatPackageUpdates)
 
 	logger.Info("Collecting disk details...")
-	diskDetails, err := metrics.GetDiskDetails()
+	diskDetailsData, err := metrics.GetDiskDetails()
 	if err != nil {
 		logger.Error("Failed to get disk details: %v", err)
 	}
-	diskDetailsHTML := metrics.FormatDiskDetails(diskDetails)
+	diskDetailsHTML := formatMetric(logger, "disk details", diskDetailsData, metrics.FormatDiskDetails)
 
 	logger.Info("Collecting CPU load details...")
-	cpuLoad, err := metrics.GetCPULoad()
-	var cpuLoadDetails string
+	cpuLoadData, err := metrics.GetCPULoad()
 	if err != nil {
 		logger.Error("Failed to get CPU load details: %v", err)
-		cpuLoadDetails = "<p>Unable to retrieve CPU load details.</p>"
-	} else {
-		cpuLoadDetails, err = metrics.FormatCPULoad(cpuLoad) // Now expects string, error
-		if err != nil {
-			logger.Error("Failed to format CPU load details: %v", err)
-			cpuLoadDetails = "<p>Unable to format CPU load details.</p>"
-		}
 	}
+	cpuLoadDetails := formatMetric(logger, "CPU load details", cpuLoadData, metrics.FormatCPULoad)
 
 	logger.Info("Collecting memory details...")
 	memoryData, err := metrics.GetMemoryDetails()
 	if err != nil {
 		logger.Error("Failed to get memory details: %v", err)
 	}
-	memoryDetails := metrics.FormatMemoryDetails(memoryData)
+	memoryDetails := formatMetric(logger, "memory details", memoryData, metrics.FormatMemoryDetails)
 
 	logger.Info("Collecting SSH session information...")
 	activeSSHData, err := metrics.GetActiveSSHSessions()
 	if err != nil {
 		logger.Error("Failed to get active SSH sessions: %v", err)
 	}
-	activeSSH := metrics.FormatActiveSSHSessions(activeSSHData)
+	activeSSH := formatMetric(logger, "active SSH sessions", activeSSHData, metrics.FormatActiveSSHSessions)
 
 	previousSSHData, err := metrics.GetPreviousSSHSessions()
 	if err != nil {
 		logger.Error("Failed to get previous SSH sessions: %v", err)
 	}
-	previousSSH := metrics.FormatPreviousSSHSessions(previousSSHData)
+	previousSSH := formatMetric(logger, "previous SSH sessions", previousSSHData, metrics.FormatPreviousSSHSessions)
 
 	logger.Info("Collecting network details...")
 	networkData, err := metrics.GetNetworkDetails()
 	if err != nil {
 		logger.Error("Failed to get network details: %v", err)
 	}
-	networkDetails := metrics.FormatNetworkDetails(networkData)
+	networkDetails := formatMetric(logger, "network details", networkData, metrics.FormatNetworkDetails)
 
 	logger.Info("Collecting CrowdSec information...")
 	crowdSecAlertsData, err := metrics.GetCrowdSecAlerts()
 	if err != nil {
 		logger.Error("Failed to get CrowdSec alerts: %v", err)
 	}
-	crowdSecAlerts := metrics.FormatCrowdSecAlerts(crowdSecAlertsData)
+	crowdSecAlerts := formatMetric(logger, "CrowdSec alerts", crowdSecAlertsData, metrics.FormatCrowdSecAlerts)
 
 	crowdSecDecisionsData, err := metrics.GetCrowdSecDecisions()
 	if err != nil {
 		logger.Error("Failed to get CrowdSec decisions: %v", err)
 	}
-	crowdSecDecisions := metrics.FormatCrowdSecDecisions(crowdSecDecisionsData)
+	crowdSecDecisions := formatMetric(logger, "CrowdSec decisions", crowdSecDecisionsData, metrics.FormatCrowdSecDecisions)
 
 	return MetricsData{
 		PackageUpdates:    packageUpdates,
@@ -184,6 +177,16 @@ func collectMetrics(logger *logger.FileLogger) MetricsData {
 		CrowdSecAlerts:    crowdSecAlerts,
 		CrowdSecDecisions: crowdSecDecisions,
 	}
+}
+
+// formatMetric is a generic helper function to format metrics and handle errors
+func formatMetric[T any](logger *logger.FileLogger, metricName string, data T, formatFunc func(T) (string, error)) string {
+	formatted, err := formatFunc(data)
+	if err != nil {
+		logger.Error("Failed to format %s: %v", metricName, err)
+		return fmt.Sprintf("<p>Unable to format %s.</p>", metricName)
+	}
+	return formatted
 }
 
 // sendReport sends the email report

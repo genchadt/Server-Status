@@ -11,7 +11,15 @@ import (
 )
 
 // Initialize a logger instance for the metrics package
-var log, err = logger.NewFileLogger("logs/metrics.log")
+var log logger.Logger
+
+func init() {
+	logger, err := logger.NewFileLogger("logs/metrics.log")
+	if err != nil {
+		panic(fmt.Sprintf("failed to create logger: %v", err))
+	}
+	log = logger
+}
 
 // DiskUsage represents disk usage information
 type DiskUsage struct {

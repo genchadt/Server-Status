@@ -1,11 +1,11 @@
 .PHONY: build install uninstall update clean test help format lint
 
 BINARY_NAME := serverstatus
-BINARY_PATH := /opt/$(BINARY_NAME)
 BUILD_DIR := .
 INSTALL_DIR := /opt/$(BINARY_NAME)
 LOG_DIR := /var/log/$(BINARY_NAME)
 CONFIG_DIR := /etc/$(BINARY_NAME)
+SERVICE_DIR := /etc/systemd/system
 
 help:
 	@echo "Usage: make [target]"
@@ -21,10 +21,13 @@ help:
 	@echo "  lint        Lint the codebase"
 
 build:
+	@echo "Tidying up go modules..."
+	@go mod tidy
+	@echo "Building..."
 	@./scripts/build.sh
 
-install: build
-	@INSTALL_DIR=$(INSTALL_DIR) LOG_DIR=$(LOG_DIR) CONFIG_DIR=$(CONFIG_DIR) ./scripts/install.sh
+install:
+	@INSTALL_DIR=$(INSTALL_DIR) LOG_DIR=$(LOG_DIR) CONFIG_DIR=$(CONFIG_DIR) SERVICE_DIR=$(SERVICE_DIR) ./scripts/install.sh
 
 uninstall:
 	@./scripts/uninstall.sh
@@ -36,6 +39,7 @@ update:
 	@echo "Dependencies updated."
 
 clean:
+	@echo "Cleaning up..."
 	@rm -f $(BUILD_DIR)/$(BINARY_NAME)
 	@rm -rf $(LOG_DIR)
 	@rm -rf $(CONFIG_DIR)

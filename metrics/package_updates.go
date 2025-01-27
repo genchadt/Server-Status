@@ -42,11 +42,14 @@ func GetPackageUpdates() ([]PackageUpdate, error) {
 		if len(fields) >= 2 {
 			pkgInfo := strings.Split(fields[0], "/")
 			if len(pkgInfo) > 0 {
-				data = append(data, PackageUpdate{
-					Package:        pkgInfo[0],
-					CurrentVersion: fields[1],
-					NewVersion:     fields[1],
-				})
+				parts := strings.Split(fields[1], "->")
+				if len(parts) == 2 {
+					data = append(data, PackageUpdate{
+						Package:        pkgInfo[0],
+						CurrentVersion: strings.TrimSpace(parts[0]),
+						NewVersion:     strings.TrimSpace(parts[1]),
+					})
+				}
 			}
 		}
 	}

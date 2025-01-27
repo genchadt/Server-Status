@@ -18,12 +18,39 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type GetPackageUpdatesFunc func() ([]metrics.PackageUpdate, error)
+type FormatPackageUpdatesFunc func([]metrics.PackageUpdate) (string, error)
+
+type GetDiskDetailsFunc func() ([]metrics.DiskUsage, error)
+type FormatDiskDetailsFunc func([]metrics.DiskUsage) (string, error)
+
+type GetCPULoadFunc func() (*metrics.CPULoad, error)
+type FormatCPULoadFunc func(*metrics.CPULoad) (string, error)
+
+type GetMemoryDetailsFunc func() (*metrics.MemoryData, error)
+type FormatMemoryDetailsFunc func(*metrics.MemoryData) (string, error)
+
+type GetActiveSSHSessionsFunc func() ([]metrics.ActiveSession, error)
+type FormatActiveSSHSessionsFunc func([]metrics.ActiveSession) (string, error)
+
+type GetPreviousSSHSessionsFunc func() ([]metrics.PreviousSession, error)
+type FormatPreviousSSHSessionsFunc func([]metrics.PreviousSession) (string, error)
+
+type GetNetworkDetailsFunc func() ([]metrics.NetworkInterface, error)
+type FormatNetworkDetailsFunc func([]metrics.NetworkInterface) (string, error)
+
+type GetCrowdSecAlertsFunc func() ([]metrics.Alert, error)
+type FormatCrowdSecAlertsFunc func([]metrics.Alert) (string, error)
+
+type GetCrowdSecDecisionsFunc func() ([]metrics.Decision, error)
+type FormatCrowdSecDecisionsFunc func([]metrics.Decision) (string, error)
+
 // MetricConfig defines the configuration for each metric
 type MetricConfig struct {
 	Name       string
 	Timeout    time.Duration
-	GetFunc    interface{}
-	FormatFunc interface{}
+	GetFunc    interface{} // Keep as interface{} to hold different function types
+	FormatFunc interface{} // Keep as interface{} to hold different function types
 }
 
 // metricConfigs is a slice of MetricConfig, defining each metric to be collected
@@ -129,35 +156,28 @@ func main() {
 			ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 			defer cancel()
 
-			// Use type assertions to call the correct functions
-			switch getFunc := cfg.GetFunc.(type) {
-			case func() ([]metrics.PackageUpdate, error):
-				formatFunc := cfg.FormatFunc.(func([]metrics.PackageUpdate) (string, error))
-				metricsData.PackageUpdates = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
-			case func() ([]metrics.DiskUsage, error):
-				formatFunc := cfg.FormatFunc.(func([]metrics.DiskUsage) (string, error))
-				metricsData.DiskDetails = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
-			case func() (*metrics.CPULoad, error):
-				formatFunc := cfg.FormatFunc.(func(*metrics.CPULoad) (string, error))
-				metricsData.CPULoadDetails = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
-			case func() (*metrics.MemoryData, error):
-				formatFunc := cfg.FormatFunc.(func(*metrics.MemoryData) (string, error))
-				metricsData.MemoryDetails = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
-			case func() ([]metrics.ActiveSession, error):
-				formatFunc := cfg.FormatFunc.(func([]metrics.ActiveSession) (string, error))
-				metricsData.ActiveSSH = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
-			case func() ([]metrics.PreviousSession, error):
-				formatFunc := cfg.FormatFunc.(func([]metrics.PreviousSession) (string, error))
-				metricsData.PreviousSSH = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
-			case func() ([]metrics.NetworkInterface, error):
-				formatFunc := cfg.FormatFunc.(func([]metrics.NetworkInterface) (string, error))
-				metricsData.NetworkDetails = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
-			case func() ([]metrics.Alert, error):
-				formatFunc := cfg.FormatFunc.(func([]metrics.Alert) (string, error))
-				metricsData.CrowdSecAlerts = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
-			case func() ([]metrics.Decision, error):
-				formatFunc := cfg.FormatFunc.(func([]metrics.Decision) (string, error))
-				metricsData.CrowdSecDecisions = collectMetric(ctx, log, cfg.Name, getFunc, formatFunc)
+			// Call collectMetric with explicit type arguments
+			switch cfg.Name {
+			case "package updates":
+				metricsData.PackageUpdates = collectMetric[[]metrics.PackageUpdate](ctx, log, cfg.Name, cfg.GetFunc.(GetPackageUpdatesFunc), cfg.FormatFunc.(FormatPackageUpdatesFunc))
+			case "disk details":
+				metricsData.DiskDetails = collectMetric[[]metrics.DiskUsage](ctx, log, cfg.Name, cfg.GetFunc.(GetDiskDetailsFunc), cfg.FormatFunc.(FormatDiskDetailsFunc))
+			case "CPU load details":
+				metricsData.CPULoadDetails = collectMetric[*metrics.CPULoad](ctx, log, cfg.Name, cfg.GetFunc.(GetCPULoadFunc), cfg.FormatFunc.(FormatCPULoadFunc))
+			case "memory details":
+				metricsData.MemoryDetails = collectMetric[*metrics.MemoryData](ctx, log, cfg.Name, cfg.GetFunc.(GetMemoryDetailsFunc), cfg.FormatFunc.(FormatMemoryDetailsFunc))
+			case "active SSH sessions":
+				metricsData.ActiveSSH = collectMetric[[]metrics.ActiveSession](ctx, log, cfg.Name, cfg.GetFunc.(GetActiveSSHSessionsFunc), cfg.FormatFunc.(FormatActiveSSHSessionsFunc))
+			case "previous SSH sessions":
+				metricsData.PreviousSSH = collectMetric[[]metrics.PreviousSession](ctx, log, cfg.Name, cfg.GetFunc.(GetPreviousSSHSessionsFunc), cfg.FormatFunc.(FormatPreviousSSHSessionsFunc))
+			case "network details":
+				metricsData.NetworkDetails = collectMetric[[]metrics.NetworkInterface](ctx, log, cfg.Name, cfg.GetFunc.(GetNetworkDetailsFunc), cfg.FormatFunc.(FormatNetworkDetailsFunc))
+			case "CrowdSec alerts":
+				metricsData.CrowdSecAlerts = collectMetric[[]metrics.Alert](ctx, log, cfg.Name, cfg.GetFunc.(GetCrowdSecAlertsFunc), cfg.FormatFunc.(FormatCrowdSecAlertsFunc))
+			case "CrowdSec decisions":
+				metricsData.CrowdSecDecisions = collectMetric[[]metrics.Decision](ctx, log, cfg.Name, cfg.GetFunc.(GetCrowdSecDecisionsFunc), cfg.FormatFunc.(FormatCrowdSecDecisionsFunc))
+			default:
+				log.Error("Unknown metric type: %s", cfg.Name)
 			}
 		}(config)
 	}
@@ -208,29 +228,158 @@ type MetricsData struct {
 }
 
 // collectMetric is a generic helper function to collect and format metrics with context
-func collectMetric[T any](ctx context.Context, logger *logger.FileLogger, metricName string, getFunc func() (T, error), formatFunc func(T) (string, error)) string {
+func collectMetric[T any](ctx context.Context, logger *logger.FileLogger, metricName string, getFunc interface{}, formatFunc interface{}) string {
 	var data T
 	var err error
 
 	done := make(chan struct{})
 	go func() {
-		data, err = getFunc()
-		close(done)
+		defer close(done)
+
+		switch f := getFunc.(type) {
+		case GetPackageUpdatesFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		case GetDiskDetailsFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		case GetCPULoadFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		case GetMemoryDetailsFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		case GetActiveSSHSessionsFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		case GetPreviousSSHSessionsFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		case GetNetworkDetailsFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		case GetCrowdSecAlertsFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		case GetCrowdSecDecisionsFunc:
+			result, getErr := f()
+			if getErr == nil {
+				data = any(result).(T)
+			}
+			err = getErr
+		default:
+			logger.Error("Unknown GetFunc type for metric: %s", metricName)
+			return
+		}
 	}()
 
 	select {
 	case <-ctx.Done():
 		logger.Error("Timeout while collecting %s: %v", metricName, ctx.Err())
-		return fmt.Sprintf("<p>Timeout while collecting %s: %v</p>", metricName, ctx.Err()) // Include error in output
+		return fmt.Sprintf("<p>Timeout while collecting %s: %v</p>", metricName, ctx.Err())
 	case <-done:
 		if err != nil {
 			logger.Error("Failed to get %s: %v", metricName, err)
-			return fmt.Sprintf("<p>Unable to get %s: %v</p>", metricName, err) // Include error in output
+			return fmt.Sprintf("<p>Unable to get %s: %v</p>", metricName, err)
 		}
-		formatted, err := formatFunc(data)
+
+		var formatted string
+		switch f := formatFunc.(type) {
+		case FormatPackageUpdatesFunc:
+			if typedData, ok := any(data).([]metrics.PackageUpdate); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to []metrics.PackageUpdate for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		case FormatDiskDetailsFunc:
+			if typedData, ok := any(data).([]metrics.DiskUsage); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to []metrics.DiskUsage for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		case FormatCPULoadFunc:
+			if typedData, ok := any(data).(*metrics.CPULoad); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to *metrics.CPULoad for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		case FormatMemoryDetailsFunc:
+			if typedData, ok := any(data).(*metrics.MemoryData); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to *metrics.MemoryData for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		case FormatActiveSSHSessionsFunc:
+			if typedData, ok := any(data).([]metrics.ActiveSession); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to []metrics.ActiveSession for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		case FormatPreviousSSHSessionsFunc:
+			if typedData, ok := any(data).([]metrics.PreviousSession); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to []metrics.PreviousSession for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		case FormatNetworkDetailsFunc:
+			if typedData, ok := any(data).([]metrics.NetworkInterface); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to []metrics.NetworkInterface for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		case FormatCrowdSecAlertsFunc:
+			if typedData, ok := any(data).([]metrics.Alert); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to []metrics.Alert for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		case FormatCrowdSecDecisionsFunc:
+			if typedData, ok := any(data).([]metrics.Decision); ok {
+				formatted, err = f(typedData)
+			} else {
+				logger.Error("Failed to cast data to []metrics.Decision for metric: %s", metricName)
+				return fmt.Sprintf("<p>Unable to format %s: invalid data type</p>", metricName)
+			}
+		default:
+			logger.Error("Unknown FormatFunc type for metric: %s", metricName)
+			return fmt.Sprintf("<p>Unable to format %s: unknown format function type</p>", metricName)
+		}
+
 		if err != nil {
 			logger.Error("Failed to format %s: %v", metricName, err)
-			return fmt.Sprintf("<p>Unable to format %s: %v</p>", metricName, err) // Include error in output
+			return fmt.Sprintf("<p>Unable to format %s: %v</p>", metricName, err)
 		}
 		return formatted
 	}

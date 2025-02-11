@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"serverstatus/utils"
+	"net"
 
 	"github.com/vishvananda/netlink"
 )
@@ -14,7 +14,7 @@ import (
 type NetworkInterface struct {
 	Interface string
 	State     string
-	IPAddress string
+	IPAddress net.IP
 }
 
 // GetNetworkDetails retrieves network interface details
@@ -41,7 +41,7 @@ func GetNetworkDetails() ([]NetworkInterface, error) {
 			data = append(data, NetworkInterface{
 				Interface: attrs.Name,
 				State:     linkStateToString(attrs.OperState),
-				IPAddress: utils.SanitizeIPAddress(addr.IP.String()),
+				IPAddress: addr.IP,
 			})
 		}
 	}
